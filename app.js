@@ -4,10 +4,25 @@ const downloadButton = document.getElementById('downloadButton');
 const status = document.getElementById('status');
 const liveVideo = document.getElementById('liveVideo');
 const recordedVideo = document.getElementById('recordedVideo');
+const timerDisplay = document.getElementById('timerDisplay');
+const recordingIndicator = document.getElementById('recordingIndicator');
+const qualitySelect = document.getElementById('qualitySelect');
+const recordingHistory = document.getElementById('recordingHistory');
+const emptyHistory = document.getElementById('emptyHistory');
 
 let recorder;
 let recordedChunks = [];
 let captureStream;
+let recordingStartTime = 0;
+let timerInterval = null;
+let currentRecordingBlob = null;
+let currentRecordingDuration = 0;
+
+const QUALITY_SETTINGS = {
+  high: { mimeType: 'video/webm; codecs=vp9', bitrate: 5000000 },
+  medium: { mimeType: 'video/webm; codecs=vp8', bitrate: 2500000 },
+  low: { mimeType: 'video/webm', bitrate: 1000000 },
+};
 
 function updateStatus(message, type = 'info') {
   status.textContent = message;
@@ -18,7 +33,113 @@ function setButtons({ recording, finished }) {
   startButton.disabled = recording;
   stopButton.disabled = !recording;
   downloadButton.disabled = !finished;
+  qualitySelect.disabled = recording;
 }
+
+function formatTime(seconds) {
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+}
+
+function startTimer() {
+  recordingStartTime = Date.now();
+  timerInterval = setInterval(() => {
+    const elapsed = Math.floor((Date.now() - recordingStartTime) / 1000);
+    timerDisplay.textContent = formatTime(elapsed);
+    currentRecordingDuration = elapsed;
+  }, 100);
+}
+
+function stopTimer() {
+  if (timerInterval) {
+    clearInterval(timerInterval);
+    timerInterval = null;
+  }
+}
+
+function showRecordingIndicator(show) {
+  if (show) {
+    recordingIndicator.classList.remove('hidden');
+  } else {
+    recordingIndicator.classList.add('hidden');
+  }
+}
+
+function saveToHistory(blob, duration) {
+  const timestamp = new Date().toLocaleString();
+  const fileName = `mythical-recorder-${Date.now()}.webm`;
+  const url = URL.createObjectURL(blob);
+  const size = (blob.size / 1024 / 1024).toFixed(2);
+
+  const history = JSON.parse(localStorage.getItem('mythicalHistory') || '[]');
+  history.unshift({
+    id: Date.now(),
+    fileName,
+    url,
+    timestamp,
+    duration,
+    size,
+  });
+
+  localStorage.setItem('mythicalHistory', JSON.stringify(history.slice(0, 10)));
+  renderHistory();
+}
+
+function renderHistory() {
+  const history = JSON.parse(localStorage.getItem('mythicalHistory') || '[]');
+
+  if (history.length === 0) {
+    recordingHistory.innerHTML = '<p id="emptyHistory">No recordings yet. Start recording to see them here.</p>';
+    return;
+  }
+
+  emptyHistory.style.display = 'none';
+  recordingHistory.innerHTML = history
+    .map(
+      (item) => `
+    <div class="recording-item">
+      <div class="recording-item-info">
+        <div class="recording-item-title">${item.fileName}</div>
+        <div class="recording-item-meta">${formatTime(item.duration)} • ${item.size} MB • ${item.timestamp}</div>
+      </div>
+      <div class="recording-item-actions">
+        <button class="play-btn" onclick="window.playRecording('${item.id}')">Play</button>
+        <button class="download-btn" onclick="window.downloadRecording('${item.id}')">Download</button>
+        <button class="delete-btn" onclick="window.deleteRecording('${item.id}')">Delete</button>
+      </div>
+    </div>
+  `
+    )
+    .join('');
+}
+
+window.playRecording = (id) => {
+  const history = JSON.parse(localStorage.getItem('mythicalHistory') || '[]');
+  const item = history.find((r) => r.id == id);
+  if (item) {
+    recordedVideo.src = item.url;
+    recordedVideo.play();
+  }
+};
+
+window.downloadRecording = (id) => {
+  const history = JSON.parse(localStorage.getItem('mythicalHistory') || '[]');
+  const item = history.find((r) => r.id == id);
+  if (item) {
+    const a = document.createElement('a');
+    a.href = item.url;
+    a.download = item.fileName;
+    a.click();
+  }
+};
+
+window.deleteRecording = (id) => {
+  let history = JSON.parse(localStorage.getItem('mythicalHistory') || '[]');
+  history = history.filter((r) => r.id !== id);
+  localStorage.setItem('mythicalHistory', JSON.stringify(history));
+  renderHistory();
+};
 
 async function startRecording() {
   try {
@@ -51,7 +172,13 @@ async function startRecording() {
     liveVideo.play().catch(() => {});
 
     recordedChunks = [];
-    recorder = new MediaRecorder(captureStream, { mimeType: 'video/webm; codecs=vp9' });
+    const quality = qualitySelect.value || 'medium';
+    const qualityConfig = QUALITY_SETTINGS[quality];
+
+    recorder = new MediaRecorder(captureStream, {
+      mimeType: qualityConfig.mimeType,
+      videoBitsPerSecond: qualityConfig.bitrate,
+    });
 
     recorder.ondataavailable = (event) => {
       if (event.data && event.data.size > 0) {
@@ -61,20 +188,30 @@ async function startRecording() {
 
     recorder.onstop = () => {
       const blob = new Blob(recordedChunks, { type: 'video/webm' });
+      currentRecordingBlob = blob;
       const url = URL.createObjectURL(blob);
       recordedVideo.src = url;
       downloadButton.href = url;
       downloadButton.download = `mythical-recorder-${Date.now()}.webm`;
+
+      saveToHistory(blob, currentRecordingDuration);
+
       setButtons({ recording: false, finished: true });
       updateStatus('Recording complete. Preview or download the result.', 'success');
+      stopTimer();
+      timerDisplay.textContent = '00:00';
+      showRecordingIndicator(false);
     };
 
     recorder.start();
     setButtons({ recording: true, finished: false });
-    updateStatus('Recording in progress. Use Stop when finished.');
+    updateStatus('Recording in progress. Press Space or click Stop when finished.');
+    startTimer();
+    showRecordingIndicator(true);
   } catch (error) {
     console.error(error);
     updateStatus('Failed to start recording. Check permissions and browser support.', 'error');
+    showRecordingIndicator(false);
   }
 }
 
@@ -97,7 +234,30 @@ downloadButton.addEventListener('click', (event) => {
   }
 });
 
+document.addEventListener('keydown', (event) => {
+  if (event.code === 'Space') {
+    event.preventDefault();
+    if (!startButton.disabled) {
+      startRecording();
+    } else if (!stopButton.disabled) {
+      stopRecording();
+    }
+  }
+
+  if (event.code === 'KeyQ') {
+    event.preventDefault();
+    if (!qualitySelect.disabled) {
+      const options = Array.from(qualitySelect.options).map((o) => o.value);
+      const currentIndex = options.indexOf(qualitySelect.value);
+      qualitySelect.value = options[(currentIndex + 1) % options.length];
+      updateStatus(`Quality changed to: ${qualitySelect.value}`, 'success');
+    }
+  }
+});
+
 if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
   startButton.disabled = true;
   updateStatus('Screen capture not supported in this browser. Use Chrome, Edge, or Firefox.', 'error');
+} else {
+  renderHistory();
 }

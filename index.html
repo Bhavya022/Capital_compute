@@ -19,14 +19,26 @@
     <main class="panel-grid">
       <section class="panel">
         <h2>Recorder</h2>
+        <div id="recordingIndicator" class="recording-indicator hidden">
+          <span class="pulse"></span> Recording…
+        </div>
+        <div class="timer-display" id="timerDisplay">00:00</div>
         <div class="controls">
           <button id="startButton" class="primary">Start recording</button>
           <button id="stopButton" disabled>Stop recording</button>
           <button id="downloadButton" disabled>Download video</button>
         </div>
+        <div class="quality-selector">
+          <label for="qualitySelect">Quality:</label>
+          <select id="qualitySelect">
+            <option value="high">High (VP9)</option>
+            <option value="medium" selected>Medium (VP8)</option>
+            <option value="low">Low (baseline)</option>
+          </select>
+        </div>
         <div class="status" id="status">Ready to record</div>
         <div class="hint">
-          <p>Use a desktop browser with screen capture support. Chrome / Edge / Firefox work best.</p>
+          <p>💡 <strong>Shortcuts:</strong> Space to start/stop | Q to change quality | Use desktop browser with screen capture support.</p>
         </div>
       </section>
 
@@ -46,6 +58,13 @@
         </div>
       </section>
     </main>
+
+    <section class="notes">
+      <h2>Recent recordings</h2>
+      <div id="recordingHistory" class="recording-history">
+        <p id="emptyHistory">No recordings yet. Start recording to see them here.</p>
+      </div>
+    </section>
 
     <section class="notes">
       <h2>Product note</h2>
