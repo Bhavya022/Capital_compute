@@ -27,6 +27,9 @@
           <button id="startButton" class="primary">Start recording</button>
           <button id="stopButton" disabled>Stop recording</button>
           <button id="downloadButton" disabled>Download video</button>
+          <button id="copyLinkButton" disabled title="Copy download link">📋 Copy link</button>
+          <button id="helpButton" title="Help">❓ Help</button>
+          <button id="settingsButton" title="Settings">⚙️ Settings</button>
         </div>
         <div class="quality-selector">
           <label for="qualitySelect">Quality:</label>
@@ -37,6 +40,9 @@
           </select>
         </div>
         <div class="status" id="status">Ready to record</div>
+        <div class="recording-info" id="recordingInfo" style="display:none;">
+          <span id="fileSize">Size: —</span> | <span id="videoDuration">Duration: 00:00</span>
+        </div>
         <div class="hint">
           <p>💡 <strong>Shortcuts:</strong> Space to start/stop | Q to change quality | Use desktop browser with screen capture support.</p>
         </div>
@@ -58,7 +64,53 @@
         </div>
       </section>
     </main>
+    <!-- Help Modal -->
+    <div id="helpModal" class="modal hidden">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>Keyboard Shortcuts & Help</h2>
+          <button class="modal-close" id="closeHelpModal">✕</button>
+        </div>
+        <div class="modal-body">
+          <h3>Keyboard Shortcuts</h3>
+          <ul>
+            <li><kbd>Space</kbd> — Start/Stop recording</li>
+            <li><kbd>Q</kbd> — Cycle quality settings</li>
+          </ul>
+          <h3>Tips</h3>
+          <ul>
+            <li>Grant screen and microphone permissions when prompted</li>
+            <li>Choose quality based on file size vs. clarity needs</li>
+            <li>Recordings are stored in browser history automatically</li>
+            <li>Copy link button generates shareable URLs (coming soon)</li>
+          </ul>
+        </div>
+      </div>
+    </div>
 
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="modal hidden">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>Settings</h2>
+          <button class="modal-close" id="closeSettingsModal">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="setting-item">
+            <label for="themeToggle">Dark Mode</label>
+            <input type="checkbox" id="themeToggle" checked>
+          </div>
+          <div class="setting-item">
+            <label for="defaultQuality">Default Quality</label>
+            <select id="defaultQuality">
+              <option value="high">High (VP9)</option>
+              <option value="medium" selected>Medium (VP8)</option>
+              <option value="low">Low (baseline)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
     <section class="notes">
       <h2>Recent recordings</h2>
       <div id="recordingHistory" class="recording-history">

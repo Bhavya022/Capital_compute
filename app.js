@@ -1,6 +1,9 @@
 const startButton = document.getElementById('startButton');
 const stopButton = document.getElementById('stopButton');
 const downloadButton = document.getElementById('downloadButton');
+const copyLinkButton = document.getElementById('copyLinkButton');
+const helpButton = document.getElementById('helpButton');
+const settingsButton = document.getElementById('settingsButton');
 const status = document.getElementById('status');
 const liveVideo = document.getElementById('liveVideo');
 const recordedVideo = document.getElementById('recordedVideo');
@@ -9,6 +12,15 @@ const recordingIndicator = document.getElementById('recordingIndicator');
 const qualitySelect = document.getElementById('qualitySelect');
 const recordingHistory = document.getElementById('recordingHistory');
 const emptyHistory = document.getElementById('emptyHistory');
+const recordingInfo = document.getElementById('recordingInfo');
+const fileSize = document.getElementById('fileSize');
+const videoDuration = document.getElementById('videoDuration');
+const helpModal = document.getElementById('helpModal');
+const settingsModal = document.getElementById('settingsModal');
+const closeHelpModal = document.getElementById('closeHelpModal');
+const closeSettingsModal = document.getElementById('closeSettingsModal');
+const themeToggle = document.getElementById('themeToggle');
+const defaultQuality = document.getElementById('defaultQuality');
 
 let recorder;
 let recordedChunks = [];
@@ -17,12 +29,55 @@ let recordingStartTime = 0;
 let timerInterval = null;
 let currentRecordingBlob = null;
 let currentRecordingDuration = 0;
+let currentDownloadUrl = null;
 
 const QUALITY_SETTINGS = {
   high: { mimeType: 'video/webm; codecs=vp9', bitrate: 5000000 },
   medium: { mimeType: 'video/webm; codecs=vp8', bitrate: 2500000 },
   low: { mimeType: 'video/webm', bitrate: 1000000 },
 };
+
+// Modal functions
+function openModal(modal) {
+  modal.classList.remove('hidden');
+}
+
+function closeModal(modal) {
+  modal.classList.add('hidden');
+}
+
+helpButton.addEventListener('click', () => openModal(helpModal));
+settingsButton.addEventListener('click', () => openModal(settingsModal));
+closeHelpModal.addEventListener('click', () => closeModal(helpModal));
+closeSettingsModal.addEventListener('click', () => closeModal(settingsModal));
+
+helpModal.addEventListener('click', (e) => {
+  if (e.target === helpModal) closeModal(helpModal);
+});
+
+settingsModal.addEventListener('click', (e) => {
+  if (e.target === settingsModal) closeModal(settingsModal);
+});
+
+// Theme toggle
+function initializeTheme() {
+  const isDark = localStorage.getItem('mythicalTheme') !== 'light';
+  themeToggle.checked = isDark;
+  applyTheme(isDark);
+}
+
+function applyTheme(isDark) {
+  if (isDark) {
+    document.body.style.colorScheme = 'dark';
+  } else {
+    document.body.style.colorScheme = 'light';
+  }
+  localStorage.setItem('mythicalTheme', isDark ? 'dark' : 'light');
+}
+
+themeToggle.addEventListener('change', () => {
+  applyTheme(themeToggle.checked);
+});
 
 function updateStatus(message, type = 'info') {
   status.textContent = message;
@@ -33,6 +88,7 @@ function setButtons({ recording, finished }) {
   startButton.disabled = recording;
   stopButton.disabled = !recording;
   downloadButton.disabled = !finished;
+  copyLinkButton.disabled = !finished;
   qualitySelect.disabled = recording;
 }
 
@@ -40,6 +96,14 @@ function formatTime(seconds) {
   const mins = Math.floor(seconds / 60);
   const secs = seconds % 60;
   return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+}
+
+function formatFileSize(bytes) {
+  if (bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
 
 function startTimer() {
@@ -65,6 +129,27 @@ function showRecordingIndicator(show) {
     recordingIndicator.classList.add('hidden');
   }
 }
+
+function downloadRecordingFile() {
+  if (!currentDownloadUrl) return;
+  const a = document.createElement('a');
+  a.href = currentDownloadUrl;
+  a.download = `mythical-recorder-${Date.now()}.webm`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  updateStatus('Recording downloaded!', 'success');
+}
+
+function copyToClipboard() {
+  if (!currentDownloadUrl) return;
+  navigator.clipboard.writeText(currentDownloadUrl).then(() => {
+    updateStatus('Download link copied to clipboard!', 'success');
+  });
+}
+
+downloadButton.addEventListener('click', downloadRecordingFile);
+copyLinkButton.addEventListener('click', copyToClipboard);
 
 function saveToHistory(blob, duration) {
   const timestamp = new Date().toLocaleString();
@@ -189,15 +274,17 @@ async function startRecording() {
     recorder.onstop = () => {
       const blob = new Blob(recordedChunks, { type: 'video/webm' });
       currentRecordingBlob = blob;
-      const url = URL.createObjectURL(blob);
-      recordedVideo.src = url;
-      downloadButton.href = url;
-      downloadButton.download = `mythical-recorder-${Date.now()}.webm`;
+      currentDownloadUrl = URL.createObjectURL(blob);
+      recordedVideo.src = currentDownloadUrl;
+
+      fileSize.textContent = `Size: ${formatFileSize(blob.size)}`;
+      videoDuration.textContent = `Duration: ${formatTime(currentRecordingDuration)}`;
+      recordingInfo.style.display = 'block';
 
       saveToHistory(blob, currentRecordingDuration);
 
       setButtons({ recording: false, finished: true });
-      updateStatus('Recording complete. Preview or download the result.', 'success');
+      updateStatus('Recording complete. Download or view in history.', 'success');
       stopTimer();
       timerDisplay.textContent = '00:00';
       showRecordingIndicator(false);
@@ -206,6 +293,7 @@ async function startRecording() {
     recorder.start();
     setButtons({ recording: true, finished: false });
     updateStatus('Recording in progress. Press Space or click Stop when finished.');
+    recordingInfo.style.display = 'none';
     startTimer();
     showRecordingIndicator(true);
   } catch (error) {
@@ -227,12 +315,6 @@ function stopRecording() {
 
 startButton.addEventListener('click', startRecording);
 stopButton.addEventListener('click', stopRecording);
-
-downloadButton.addEventListener('click', (event) => {
-  if (downloadButton.disabled) {
-    event.preventDefault();
-  }
-});
 
 document.addEventListener('keydown', (event) => {
   if (event.code === 'Space') {
@@ -260,4 +342,5 @@ if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
   updateStatus('Screen capture not supported in this browser. Use Chrome, Edge, or Firefox.', 'error');
 } else {
   renderHistory();
+  initializeTheme();
 }
