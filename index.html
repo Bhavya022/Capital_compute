@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mythical Recorder MVP</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="page-shell">
+    <header class="hero">
+      <div>
+        <h1>Mythical Recorder</h1>
+        <p>Minimal screen recorder MVP with screen + microphone capture, preview, and download.</p>
+      </div>
+      <div class="badge">MVP</div>
+    </header>
+
+    <main class="panel-grid">
+      <section class="panel">
+        <h2>Recorder</h2>
+        <div class="controls">
+          <button id="startButton" class="primary">Start recording</button>
+          <button id="stopButton" disabled>Stop recording</button>
+          <button id="downloadButton" disabled>Download video</button>
+        </div>
+        <div class="status" id="status">Ready to record</div>
+        <div class="hint">
+          <p>Use a desktop browser with screen capture support. Chrome / Edge / Firefox work best.</p>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Live preview</h2>
+        <div class="video-shell">
+          <video id="liveVideo" autoplay muted playsinline></video>
+          <div class="preview-label">Live screen capture</div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Recorded playback</h2>
+        <div class="video-shell">
+          <video id="recordedVideo" controls playsinline></video>
+          <div class="preview-label">Finished recording</div>
+        </div>
+      </section>
+    </main>
+
+    <section class="notes">
+      <h2>Product note</h2>
+      <p>This prototype demonstrates the core MVP: capture screen + mic, preview recordings, and deliver a downloadable video file without backend complexity.</p>
+    </section>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>

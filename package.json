@@ -1,0 +1,12 @@
+{
+  "name": "mythical-recorder-mvp",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Browser screen recorder MVP for Mythical Enterprises take-home test.",
+  "scripts": {
+    "start": "python3 -m http.server 8000",
+    "serve": "python3 -m http.server 8000"
+  },
+  "author": "Mythical Enterprises Candidate",
+  "license": "MIT"
+}
